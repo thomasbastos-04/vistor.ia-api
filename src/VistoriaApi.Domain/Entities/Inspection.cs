@@ -106,6 +106,12 @@ public sealed class Inspection : Entity
         CompletedAtUtc = DateTime.UtcNow;
     }
 
+    public void Expire()
+    {
+        Status = InspectionStatus.Expired;
+        ExpiresAtUtc = DateTime.UtcNow;
+    }
+
     public void EnsureAvailable()
     {
         if (Status == InspectionStatus.Completed)

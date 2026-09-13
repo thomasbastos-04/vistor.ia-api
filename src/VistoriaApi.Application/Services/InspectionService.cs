@@ -196,6 +196,8 @@ public sealed class InspectionService
             throw new AppException("Não é possível regenerar uma vistoria concluída.", 409);
         }
 
+        currentInspection.Expire();
+
         var publicToken = _tokenService.GeneratePublicToken();
         var expiresAtUtc = DateTime.UtcNow.AddDays(7);
         var replacement = new Inspection(
