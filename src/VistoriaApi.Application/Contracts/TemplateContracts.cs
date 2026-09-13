@@ -13,3 +13,19 @@ public sealed record CreateTemplateRequest(
     [property: Required, StringLength(80)] string Category,
     [property: StringLength(500)] string? Description,
     [property: Required, MinLength(1)] List<PhotoRequirementRequest> PhotoRequirements);
+
+public sealed record TemplateRequirementResponse(
+    Guid Id,
+    string Code,
+    string Label,
+    bool Required,
+    int SortOrder);
+
+public sealed record TemplateResponse(
+    Guid Id,
+    string Name,
+    string Category,
+    string? Description,
+    bool Active,
+    DateTime CreatedAtUtc,
+    IEnumerable<TemplateRequirementResponse> PhotoRequirements);

@@ -23,7 +23,7 @@ public sealed class AppDbContext : DbContext, IAppDbContext
 
     IQueryable<Inspection> IAppDbContext.Inspections => InspectionsSet;
 
-    public void Add<TEntity>(TEntity entity)
+    void IAppDbContext.Add<TEntity>(TEntity entity)
         where TEntity : class
     {
         Set<TEntity>().Add(entity);

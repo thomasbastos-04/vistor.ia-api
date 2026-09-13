@@ -97,5 +97,7 @@ app.Run();
 
 namespace VistoriaApi.Api
 {
-    public partial class Program;
+    public partial class Program
+    {
+    }
 }

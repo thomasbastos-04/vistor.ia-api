@@ -72,13 +72,28 @@ public sealed class InspectionService
         return template.Id;
     }
 
-    public Task<List<InspectionTemplate>> ListTemplatesAsync(CancellationToken cancellationToken)
+    public Task<List<TemplateResponse>> ListTemplatesAsync(CancellationToken cancellationToken)
     {
         return _dbContext.Templates
             .AsNoTracking()
             .Include(template => template.Requirements)
             .Where(template => template.OwnerId == _currentUser.UserId && template.Active)
             .OrderByDescending(template => template.CreatedAtUtc)
+            .Select(template => new TemplateResponse(
+                template.Id,
+                template.Name,
+                template.Category,
+                template.Description,
+                template.Active,
+                template.CreatedAtUtc,
+                template.Requirements
+                    .OrderBy(requirement => requirement.SortOrder)
+                    .Select(requirement => new TemplateRequirementResponse(
+                        requirement.Id,
+                        requirement.Code,
+                        requirement.Label,
+                        requirement.Required,
+                        requirement.SortOrder))))
             .ToListAsync(cancellationToken);
     }
 

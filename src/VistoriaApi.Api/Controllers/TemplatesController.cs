@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VistoriaApi.Application.Contracts;
 using VistoriaApi.Application.Services;
-using VistoriaApi.Domain.Entities;
 
 namespace VistoriaApi.Api.Controllers;
 
@@ -19,7 +18,7 @@ public sealed class TemplatesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<InspectionTemplate>>> List(
+    public async Task<ActionResult<List<TemplateResponse>>> List(
         CancellationToken cancellationToken)
     {
         var templates = await _inspectionService.ListTemplatesAsync(cancellationToken);
