@@ -20,3 +20,20 @@ public sealed class PhotoRequirementRequest
     [Range(0, 999)]
     public int SortOrder { get; init; }
 }
+
+public sealed class CreateTemplateRequest
+{
+    [Required]
+    [StringLength(120, MinimumLength = 2)]
+    public string Name { get; init; } = string.Empty;
+
+    [Required]
+    [StringLength(80, MinimumLength = 1)]
+    public string Category { get; init; } = string.Empty;
+
+    [StringLength(500)]
+    public string? Description { get; init; }
+
+    [Required]
+    public List<PhotoRequirementRequest> PhotoRequirements { get; init; } = new();
+}
