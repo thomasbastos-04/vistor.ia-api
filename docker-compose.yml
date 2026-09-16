@@ -1,23 +1,4 @@
 ﻿services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: vistoria-postgres
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-vistoria}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-vistoria}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
   mailpit:
     image: axllent/mailpit:v1.20
     container_name: vistoria-mailpit
@@ -32,13 +13,10 @@
       dockerfile: Dockerfile
     image: vistoria-api:local
     container_name: vistoria-api
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-vistoria};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      ConnectionStrings__Default: Host=host.docker.internal;Port=5432;Database=${POSTGRES_DB:-vistoria};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
       Jwt__Key: ${JWT_KEY:-LOCAL-DEVELOPMENT-KEY-VISTORIA-API-CHANGE-IN-PRODUCTION}
       Jwt__Issuer: ${JWT_ISSUER:-Vistor.ia}
       Jwt__Audience: ${JWT_AUDIENCE:-Vistor.ia.Client}
@@ -49,14 +27,16 @@
       Smtp__Port: 1025
       Smtp__UseSsl: "false"
       Smtp__From: ${SMTP_FROM:-no-reply@vistoria.local}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${API_PORT:-5080}:8080"
     volumes:
       - uploads:/app/uploads
+    depends_on:
+      - mailpit
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-    name: vistoria-postgres-data
   uploads:
     name: vistoria-api-uploads

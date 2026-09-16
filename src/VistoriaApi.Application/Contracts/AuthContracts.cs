@@ -2,18 +2,18 @@ using System.ComponentModel.DataAnnotations;
 
 namespace VistoriaApi.Application.Contracts;
 
-public sealed record RegisterRequest(
-    [property: Required, StringLength(120, MinimumLength = 2)] string Name,
-    [property: Required, EmailAddress, StringLength(180)] string Email,
-    [property: Required, StringLength(100, MinimumLength = 8)] string Password);
+public sealed class RegisterRequest
+{
+    [Required]
+    [StringLength(120, MinimumLength = 2)]
+    public string Name { get; init; } = string.Empty;
 
-public sealed record LoginRequest(
-    [property: Required, EmailAddress] string Email,
-    [property: Required] string Password);
+    [Required]
+    [EmailAddress]
+    [StringLength(180)]
+    public string Email { get; init; } = string.Empty;
 
-public sealed record AuthResponse(
-    Guid UserId,
-    string Name,
-    string Email,
-    string AccessToken,
-    DateTime ExpiresAtUtc);
+    [Required]
+    [StringLength(100, MinimumLength = 8)]
+    public string Password { get; init; } = string.Empty;
+}
