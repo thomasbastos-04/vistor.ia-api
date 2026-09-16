@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -16,6 +17,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        var allowedOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>() ?? [];
+
+        policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -46,8 +61,14 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+var connectionString = builder.Configuration.GetConnectionString("Default");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("ConnectionStrings:Default não configurada.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+    options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IAppDbContext>(provider =>
     provider.GetRequiredService<AppDbContext>());
 
@@ -60,8 +81,16 @@ builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("Jwt:Key não configurada.");
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("Jwt:Key não configurada.");
+}
+
+if (jwtKey.Length < 32)
+{
+    throw new InvalidOperationException("Jwt:Key deve possuir pelo menos 32 caracteres.");
+}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -85,13 +114,65 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor
+        | ForwardedHeaders.XForwardedProto
+});
 app.UseMiddleware<ExceptionMiddleware>();
-app.UseSwagger();
-app.UseSwaggerUI();
-app.UseHttpsRedirection();
+if (app.Configuration.GetValue("Swagger:Enabled", app.Environment.IsDevelopment()))
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+if (app.Configuration.GetValue<bool>("HttpsRedirection:Enabled"))
+{
+    app.UseHttpsRedirection();
+}
+
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/", () => Results.Redirect("/swagger"))
+    .ExcludeFromDescription();
+app.MapGet("/health", () => Results.Ok(new
+    {
+        status = "healthy",
+        service = "Vistor.ia API",
+        utcTime = DateTime.UtcNow
+    }))
+    .WithTags("Health");
+app.MapGet("/health/database", async (
+        AppDbContext dbContext,
+        CancellationToken cancellationToken) =>
+    {
+        try
+        {
+            var connected = await dbContext.Database.CanConnectAsync(cancellationToken);
+            if (connected)
+            {
+                return Results.Ok(new
+                {
+                    status = "healthy",
+                    database = "PostgreSQL"
+                });
+            }
+
+            return Results.Problem(
+                title: "Não foi possível conectar ao PostgreSQL.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (Exception exception)
+        {
+            return Results.Problem(
+                title: "Falha ao conectar ao PostgreSQL.",
+                detail: app.Environment.IsDevelopment() ? exception.Message : null,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    })
+    .WithTags("Health");
 
 app.Run();
 

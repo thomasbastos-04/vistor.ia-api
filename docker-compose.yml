@@ -1,45 +1,62 @@
-services:
+﻿services:
   postgres:
     image: postgres:16-alpine
+    container_name: vistoria-postgres
     environment:
-      POSTGRES_DB: vistoria
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-vistoria}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d vistoria"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-vistoria}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
   mailpit:
     image: axllent/mailpit:v1.20
+    container_name: vistoria-mailpit
     ports:
       - "1025:1025"
       - "8025:8025"
+    restart: unless-stopped
 
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vistoria-api:local
+    container_name: vistoria-api
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=vistoria;Username=postgres;Password=postgres
-      Jwt__Key: local-development-key-change-before-production-12345
-      App__FrontendUrl: http://localhost:4200
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-vistoria};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      Jwt__Key: ${JWT_KEY:-LOCAL-DEVELOPMENT-KEY-VISTORIA-API-CHANGE-IN-PRODUCTION}
+      Jwt__Issuer: ${JWT_ISSUER:-Vistor.ia}
+      Jwt__Audience: ${JWT_AUDIENCE:-Vistor.ia.Client}
+      App__FrontendUrl: ${FRONTEND_URL:-http://localhost:4200}
+      Cors__AllowedOrigins__0: ${FRONTEND_URL:-http://localhost:4200}
       Storage__Root: /app/uploads
       Smtp__Host: mailpit
       Smtp__Port: 1025
-      Smtp__From: no-reply@vistoria.local
-      ASPNETCORE_ENVIRONMENT: Development
+      Smtp__UseSsl: "false"
+      Smtp__From: ${SMTP_FROM:-no-reply@vistoria.local}
     ports:
-      - "5080:8080"
+      - "${API_PORT:-5080}:8080"
     volumes:
       - uploads:/app/uploads
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+    name: vistoria-postgres-data
   uploads:
+    name: vistoria-api-uploads

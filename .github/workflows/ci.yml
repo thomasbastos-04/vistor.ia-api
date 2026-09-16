@@ -1,19 +1,17 @@
-name: CI
+name: API CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup .NET
@@ -21,8 +19,11 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore VistoriaApi.sln
 
       - name: Build
         run: dotnet build VistoriaApi.sln --configuration Release --no-restore
+
+      - name: Build Docker image
+        run: docker build --tag vistoria-api:ci .
