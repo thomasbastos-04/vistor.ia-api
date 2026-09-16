@@ -1,0 +1,19 @@
+services:
+  api:
+    image: ${VISTORIA_API_IMAGE:-vistoria-api:homolog}
+    container_name: vistoria-api-homolog
+    env_file:
+      - .env.homolog
+    environment:
+      ASPNETCORE_ENVIRONMENT: Homologation
+      ASPNETCORE_URLS: http://+:8080
+      Storage__Root: /app/uploads
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - homolog_uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  homolog_uploads:
+    name: vistoria-api-homolog-uploads
