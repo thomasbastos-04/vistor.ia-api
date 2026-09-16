@@ -42,13 +42,18 @@ public sealed class InspectionService
         CreateTemplateRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var duplicatedCodes = request.PhotoRequirements
-            .GroupBy(item => item.Code.Trim().ToLowerInvariant())
+            .GroupBy(
+                requirement => requirement.Code.Trim(),
+                StringComparer.OrdinalIgnoreCase)
             .Any(group => group.Count() > 1);
 
         if (duplicatedCodes)
         {
-            throw new AppException("Os códigos das fotos não podem se repetir.");
+            throw new AppException(
+                "Os códigos das exigências fotográficas não podem se repetir.");
         }
 
         var template = new InspectionTemplate(
@@ -57,7 +62,8 @@ public sealed class InspectionService
             request.Category,
             request.Description);
 
-        foreach (var requirement in request.PhotoRequirements.OrderBy(item => item.SortOrder))
+        foreach (var requirement in request.PhotoRequirements
+                     .OrderBy(requirement => requirement.SortOrder))
         {
             template.AddRequirement(
                 requirement.Code,
@@ -72,12 +78,14 @@ public sealed class InspectionService
         return template.Id;
     }
 
-    public Task<List<TemplateResponse>> ListTemplatesAsync(CancellationToken cancellationToken)
+    public Task<List<TemplateResponse>> ListTemplatesAsync(
+        CancellationToken cancellationToken)
     {
         return _dbContext.Templates
             .AsNoTracking()
-            .Include(template => template.Requirements)
-            .Where(template => template.OwnerId == _currentUser.UserId && template.Active)
+            .Where(template =>
+                template.OwnerId == _currentUser.UserId &&
+                template.Active)
             .OrderByDescending(template => template.CreatedAtUtc)
             .Select(template => new TemplateResponse(
                 template.Id,
@@ -102,32 +110,44 @@ public sealed class InspectionService
         string frontendUrl,
         CancellationToken cancellationToken)
     {
-        var templateExists = await _dbContext.Templates.AnyAsync(
-            template => template.Id == request.TemplateId
-                && template.OwnerId == _currentUser.UserId
-                && template.Active,
-            cancellationToken);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var templateExists = await _dbContext.Templates
+            .AsNoTracking()
+            .AnyAsync(
+                template =>
+                    template.Id == request.TemplateId &&
+                    template.OwnerId == _currentUser.UserId &&
+                    template.Active,
+                cancellationToken);
 
         if (!templateExists)
         {
-            throw new AppException("Modelo de vistoria não encontrado.", 404);
+            throw new AppException(
+                "Modelo de vistoria não encontrado.",
+                404);
         }
 
         var publicToken = _tokenService.GeneratePublicToken();
+        var publicTokenHash = _tokenService.HashPublicToken(publicToken);
         var expiresAtUtc = DateTime.UtcNow.AddDays(request.LinkValidDays);
+
         var inspection = new Inspection(
             _currentUser.UserId,
             request.TemplateId,
             request.RecipientName,
             request.RecipientEmail,
             request.AssetIdentification,
-            _tokenService.HashPublicToken(publicToken),
+            publicTokenHash,
             expiresAtUtc);
 
         _dbContext.Add(inspection);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return CreateInspectionResponse(inspection, publicToken, frontendUrl);
+        return CreateInspectionResponse(
+            inspection,
+            publicToken,
+            frontendUrl);
     }
 
     public Task<List<InspectionSummaryResponse>> ListInspectionsAsync(
@@ -135,10 +155,10 @@ public sealed class InspectionService
     {
         return _dbContext.Inspections
             .AsNoTracking()
-            .Where(inspection => inspection.OwnerId == _currentUser.UserId)
-            .OrderByDescending(inspection => inspection.CreatedAtUtc)
+            .Where(inspection =>
+                inspection.OwnerId == _currentUser.UserId)
             .Join(
-                _dbContext.Templates,
+                _dbContext.Templates.AsNoTracking(),
                 inspection => inspection.TemplateId,
                 template => template.Id,
                 (inspection, template) => new InspectionSummaryResponse(
@@ -151,6 +171,7 @@ public sealed class InspectionService
                     inspection.ExpiresAtUtc,
                     inspection.CreatedAtUtc,
                     inspection.CompletedAtUtc))
+            .OrderByDescending(inspection => inspection.CreatedAtUtc)
             .ToListAsync(cancellationToken);
     }
 
@@ -160,19 +181,31 @@ public sealed class InspectionService
         string frontendUrl,
         CancellationToken cancellationToken)
     {
-        var inspection = await GetOwnedInspectionAsync(inspectionId, cancellationToken);
+        ValidatePublicToken(publicToken);
+
+        var inspection = await GetOwnedInspectionAsync(
+            inspectionId,
+            cancellationToken);
+
         inspection.EnsureAvailable();
 
-        var informedTokenHash = _tokenService.HashPublicToken(publicToken);
+        var informedTokenHash =
+            _tokenService.HashPublicToken(publicToken);
+
         if (!string.Equals(
                 informedTokenHash,
                 inspection.PublicTokenHash,
                 StringComparison.Ordinal))
         {
-            throw new AppException("Token público inválido.");
+            throw new AppException(
+                "Token público inválido.",
+                400);
         }
 
-        var publicUrl = BuildPublicUrl(frontendUrl, publicToken);
+        var publicUrl = BuildPublicUrl(
+            frontendUrl,
+            publicToken);
+
         await _emailSender.SendInspectionInviteAsync(
             inspection.RecipientEmail,
             inspection.RecipientName,
@@ -181,6 +214,7 @@ public sealed class InspectionService
             cancellationToken);
 
         inspection.MarkAsSent();
+
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -189,29 +223,40 @@ public sealed class InspectionService
         string frontendUrl,
         CancellationToken cancellationToken)
     {
-        var currentInspection = await GetOwnedInspectionAsync(inspectionId, cancellationToken);
+        var currentInspection = await GetOwnedInspectionAsync(
+            inspectionId,
+            cancellationToken);
 
         if (currentInspection.Status == InspectionStatus.Completed)
         {
-            throw new AppException("Não é possível regenerar uma vistoria concluída.", 409);
+            throw new AppException(
+                "Não é possível regenerar uma vistoria concluída.",
+                409);
         }
 
         currentInspection.Expire();
 
         var publicToken = _tokenService.GeneratePublicToken();
+        var publicTokenHash =
+            _tokenService.HashPublicToken(publicToken);
+
         var expiresAtUtc = DateTime.UtcNow.AddDays(7);
+
         var replacement = new Inspection(
             currentInspection.OwnerId,
             currentInspection.TemplateId,
             currentInspection.RecipientName,
             currentInspection.RecipientEmail,
             currentInspection.AssetIdentification,
-            _tokenService.HashPublicToken(publicToken),
+            publicTokenHash,
             expiresAtUtc);
 
         _dbContext.Add(replacement);
 
-        var publicUrl = BuildPublicUrl(frontendUrl, publicToken);
+        var publicUrl = BuildPublicUrl(
+            frontendUrl,
+            publicToken);
+
         await _emailSender.SendInspectionInviteAsync(
             replacement.RecipientEmail,
             replacement.RecipientName,
@@ -220,36 +265,57 @@ public sealed class InspectionService
             cancellationToken);
 
         replacement.MarkAsSent();
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return CreateInspectionResponse(replacement, publicToken, frontendUrl);
+        return CreateInspectionResponse(
+            replacement,
+            publicToken,
+            frontendUrl);
     }
 
     public async Task<PublicInspectionResponse> GetPublicAsync(
         string publicToken,
         CancellationToken cancellationToken)
     {
-        var inspection = await GetInspectionByPublicTokenAsync(publicToken, cancellationToken);
+        ValidatePublicToken(publicToken);
+
+        var inspection = await GetInspectionByPublicTokenAsync(
+            publicToken,
+            cancellationToken);
 
         if (inspection.ExpiresAtUtc <= DateTime.UtcNow)
         {
-            throw new AppException("O link da vistoria expirou.", 410);
+            throw new AppException(
+                "O link da vistoria expirou.",
+                410);
         }
 
         var template = await _dbContext.Templates
             .AsNoTracking()
-            .Include(item => item.Requirements)
-            .SingleAsync(item => item.Id == inspection.TemplateId, cancellationToken);
+            .SingleOrDefaultAsync(
+                item => item.Id == inspection.TemplateId,
+                cancellationToken);
+
+        if (template is null)
+        {
+            throw new AppException(
+                "O modelo desta vistoria não foi encontrado.",
+                404);
+        }
 
         var requirements = template.Requirements
-            .OrderBy(item => item.SortOrder)
-            .Select(item => new PublicRequirementResponse(
-                item.Id,
-                item.Code,
-                item.Label,
-                item.Required,
-                item.SortOrder,
-                inspection.Photos.Any(photo => photo.RequirementId == item.Id)));
+            .OrderBy(requirement => requirement.SortOrder)
+            .Select(requirement => new PublicRequirementResponse(
+                requirement.Id,
+                requirement.Code,
+                requirement.Label,
+                requirement.Required,
+                requirement.SortOrder,
+                inspection.Photos.Any(
+                    photo =>
+                        photo.RequirementId == requirement.Id)))
+            .ToList();
 
         return new PublicInspectionResponse(
             inspection.Id,
@@ -270,27 +336,78 @@ public sealed class InspectionService
         long sizeBytes,
         CancellationToken cancellationToken)
     {
-        ValidatePhoto(contentType, sizeBytes);
+        ValidatePublicToken(publicToken);
 
-        var inspection = await GetInspectionByPublicTokenAsync(publicToken, cancellationToken);
+        if (requirementId == Guid.Empty)
+        {
+            throw new AppException(
+                "A exigência fotográfica não foi informada.",
+                400);
+        }
+
+        ArgumentNullException.ThrowIfNull(photoStream);
+
+        var normalizedContentType =
+            NormalizeContentType(contentType);
+
+        ValidatePhoto(
+            normalizedContentType,
+            sizeBytes);
+
+        var inspection = await GetInspectionByPublicTokenAsync(
+            publicToken,
+            cancellationToken);
+
         inspection.EnsureAvailable();
 
         var requirementExists = await _dbContext.Templates
-            .Where(template => template.Id == inspection.TemplateId)
+            .AsNoTracking()
+            .Where(template =>
+                template.Id == inspection.TemplateId)
             .SelectMany(template => template.Requirements)
-            .AnyAsync(requirement => requirement.Id == requirementId, cancellationToken);
+            .AnyAsync(
+                requirement =>
+                    requirement.Id == requirementId,
+                cancellationToken);
 
         if (!requirementExists)
         {
-            throw new AppException("A foto não pertence a este modelo de vistoria.");
+            throw new AppException(
+                "A exigência fotográfica não pertence a esta vistoria.",
+                400);
         }
+
+        var previousPhoto = inspection.Photos
+            .SingleOrDefault(
+                photo =>
+                    photo.RequirementId == requirementId);
 
         var storagePath = await _fileStorage.SaveAsync(
             photoStream,
-            contentType,
+            normalizedContentType,
             cancellationToken);
 
-        inspection.AddOrReplacePhoto(requirementId, storagePath, contentType, sizeBytes);
+        inspection.AddOrReplacePhoto(
+            requirementId,
+            storagePath,
+            normalizedContentType,
+            sizeBytes);
+
+        var persistedPhoto = inspection.Photos
+            .Single(photo =>
+                photo.RequirementId == requirementId);
+
+        /*
+         * Quando AddOrReplacePhoto cria uma entidade com Guid já preenchido,
+         * o EF Core pode interpretá-la como Modified ao detectá-la somente
+         * pela navegação. Registramos explicitamente apenas quando a entidade
+         * atual é realmente nova.
+         */
+        if (!ReferenceEquals(previousPhoto, persistedPhoto))
+        {
+            _dbContext.Add(persistedPhoto);
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -299,24 +416,42 @@ public sealed class InspectionService
         CompleteInspectionRequest request,
         CancellationToken cancellationToken)
     {
-        var inspection = await GetInspectionByPublicTokenAsync(publicToken, cancellationToken);
+        ValidatePublicToken(publicToken);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var inspection = await GetInspectionByPublicTokenAsync(
+            publicToken,
+            cancellationToken);
+
         inspection.EnsureAvailable();
 
         var requiredPhotoIds = await _dbContext.Templates
-            .Where(template => template.Id == inspection.TemplateId)
+            .AsNoTracking()
+            .Where(template =>
+                template.Id == inspection.TemplateId)
             .SelectMany(template => template.Requirements)
             .Where(requirement => requirement.Required)
             .Select(requirement => requirement.Id)
             .ToListAsync(cancellationToken);
 
-        var uploadedPhotoIds = inspection.Photos.Select(photo => photo.RequirementId);
-        if (requiredPhotoIds.Except(uploadedPhotoIds).Any())
+        var uploadedPhotoIds = inspection.Photos
+            .Select(photo => photo.RequirementId)
+            .ToHashSet();
+
+        var missingRequiredPhotos = requiredPhotoIds
+            .Where(requirementId =>
+                !uploadedPhotoIds.Contains(requirementId))
+            .ToList();
+
+        if (missingRequiredPhotos.Count > 0)
         {
             throw new AppException(
-                "Envie todas as fotos obrigatórias antes de concluir a vistoria.");
+                "Envie todas as fotos obrigatórias antes de concluir a vistoria.",
+                400);
         }
 
         inspection.Complete(request.Notes);
+
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -324,25 +459,44 @@ public sealed class InspectionService
         Guid inspectionId,
         CancellationToken cancellationToken)
     {
-        return await _dbContext.Inspections.SingleOrDefaultAsync(
-            inspection => inspection.Id == inspectionId
-                && inspection.OwnerId == _currentUser.UserId,
-            cancellationToken)
-            ?? throw new AppException("Vistoria não encontrada.", 404);
+        if (inspectionId == Guid.Empty)
+        {
+            throw new AppException(
+                "O identificador da vistoria é inválido.",
+                400);
+        }
+
+        var inspection = await _dbContext.Inspections
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == inspectionId &&
+                    item.OwnerId == _currentUser.UserId,
+                cancellationToken);
+
+        return inspection
+            ?? throw new AppException(
+                "Vistoria não encontrada.",
+                404);
     }
 
     private async Task<Inspection> GetInspectionByPublicTokenAsync(
         string publicToken,
         CancellationToken cancellationToken)
     {
-        var publicTokenHash = _tokenService.HashPublicToken(publicToken);
+        var publicTokenHash =
+            _tokenService.HashPublicToken(publicToken);
 
-        return await _dbContext.Inspections
-            .Include(inspection => inspection.Photos)
+        var inspection = await _dbContext.Inspections
+            .Include(item => item.Photos)
             .SingleOrDefaultAsync(
-                inspection => inspection.PublicTokenHash == publicTokenHash,
-                cancellationToken)
-            ?? throw new AppException("Link de vistoria inválido.", 404);
+                item =>
+                    item.PublicTokenHash == publicTokenHash,
+                cancellationToken);
+
+        return inspection
+            ?? throw new AppException(
+                "Link de vistoria inválido.",
+                404);
     }
 
     private static CreatedInspectionResponse CreateInspectionResponse(
@@ -357,21 +511,75 @@ public sealed class InspectionService
             inspection.ExpiresAtUtc);
     }
 
-    private static string BuildPublicUrl(string frontendUrl, string publicToken)
+    private static string BuildPublicUrl(
+        string frontendUrl,
+        string publicToken)
     {
+        if (string.IsNullOrWhiteSpace(frontendUrl))
+        {
+            throw new InvalidOperationException(
+                "A URL do frontend não foi configurada.");
+        }
+
+        ValidatePublicToken(publicToken);
+
         return $"{frontendUrl.TrimEnd('/')}/vistoria/{publicToken}";
     }
 
-    private static void ValidatePhoto(string contentType, long sizeBytes)
+    private static void ValidatePublicToken(string publicToken)
     {
-        if (sizeBytes <= 0 || sizeBytes > MaximumPhotoSize)
+        if (string.IsNullOrWhiteSpace(publicToken))
         {
-            throw new AppException("A foto deve ter no máximo 10 MB.", 413);
+            throw new AppException(
+                "O token público não foi informado.",
+                400);
+        }
+    }
+
+    private static string NormalizeContentType(
+        string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            throw new AppException(
+                "O tipo do arquivo não foi informado.",
+                415);
         }
 
-        if (!AllowedContentTypes.Contains(contentType, StringComparer.OrdinalIgnoreCase))
+        return contentType
+            .Split(
+                ';',
+                2,
+                StringSplitOptions.TrimEntries)
+            [0]
+            .ToLowerInvariant();
+    }
+
+    private static void ValidatePhoto(
+        string contentType,
+        long sizeBytes)
+    {
+        if (sizeBytes <= 0)
         {
-            throw new AppException("Formato aceito: JPEG, PNG ou WEBP.", 415);
+            throw new AppException(
+                "O arquivo enviado está vazio.",
+                400);
+        }
+
+        if (sizeBytes > MaximumPhotoSize)
+        {
+            throw new AppException(
+                "A foto deve ter no máximo 10 MB.",
+                413);
+        }
+
+        if (!AllowedContentTypes.Contains(
+                contentType,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            throw new AppException(
+                "Formato inválido. Envie uma imagem JPEG, PNG ou WEBP.",
+                415);
         }
     }
 }
