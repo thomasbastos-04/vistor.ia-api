@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VistoriaApi.Api.Requests;
 using VistoriaApi.Application.Contracts;
 using VistoriaApi.Application.Services;
 
@@ -30,21 +31,22 @@ public sealed class PublicInspectionsController : ControllerBase
     }
 
     [HttpPost("{publicToken}/photos/{requirementId:guid}")]
+    [Consumes("multipart/form-data")]
     [RequestSizeLimit(10_485_760)]
     public async Task<IActionResult> UploadPhoto(
         string publicToken,
         Guid requirementId,
-        [FromForm] IFormFile photo,
+        [FromForm] UploadInspectionPhotoRequest request,
         CancellationToken cancellationToken)
     {
-        await using var photoStream = photo.OpenReadStream();
+        await using var photoStream = request.Photo.OpenReadStream();
 
         await _inspectionService.UploadPhotoAsync(
             publicToken,
             requirementId,
             photoStream,
-            photo.ContentType,
-            photo.Length,
+            request.Photo.ContentType,
+            request.Photo.Length,
             cancellationToken);
 
         return NoContent();
