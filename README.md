@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/vistoria-logo.png" alt="Vistor.ia" width="720">
+  <img src="docs/assets/logo.png" alt="Vistor.ia" width="720">
 </p>
 
 <p align="center">
