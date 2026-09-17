@@ -76,6 +76,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<InspectionService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
+builder.Services.AddScoped<VistoriaApi.Application.Abstractions.IEmailTemplateRenderer, VistoriaApi.Infrastructure.Email.SmtpEmailTemplateRenderer>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.AddHttpContextAccessor();
