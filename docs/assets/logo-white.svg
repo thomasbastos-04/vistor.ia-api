@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="820"
+  height="200"
+  viewBox="0 0 820 200"
+  role="img"
+  aria-labelledby="logo-title logo-description"
+>
+  <title id="logo-title">Vistor.ia</title>
+  <desc id="logo-description">
+    Versão branca da logo Vistor.ia para aplicação sobre fundos escuros.
+  </desc>
+
+  <g
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M31 74V51C31 35.536 43.536 23 59 23H141C156.464 23 169 35.536 169 51V74" />
+    <path d="M31 91L100 164L169 91" />
+  </g>
+
+  <circle cx="139" cy="56" r="12" fill="#FFFFFF" />
+
+  <text
+    x="218"
+    y="137"
+    fill="#FFFFFF"
+    font-family="Manrope, Inter, Arial, Helvetica, sans-serif"
+    font-size="108"
+    font-weight="700"
+    letter-spacing="-4"
+  >Vistor.ia</text>
+</svg>
