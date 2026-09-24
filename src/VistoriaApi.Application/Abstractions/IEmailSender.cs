@@ -8,4 +8,15 @@ public interface IEmailSender
         string publicUrl,
         DateTime expiresAtUtc,
         CancellationToken cancellationToken);
+
+    Task SendVerificationCodeAsync(
+        string email,
+        string recipientName,
+        string code,
+        CancellationToken cancellationToken);
+
+    Task SendWelcomeAsync(
+        string email,
+        string recipientName,
+        CancellationToken cancellationToken);
 }
