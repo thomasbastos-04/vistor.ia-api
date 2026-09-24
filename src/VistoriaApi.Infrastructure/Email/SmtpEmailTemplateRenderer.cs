@@ -30,10 +30,18 @@ public sealed class SmtpEmailTemplateRenderer : IEmailTemplateRenderer
                    style="display:block;width:150px;max-width:100%;height:auto;border:0;"
                />
                """
+            : string.Empty;
+
+        var brandHtml = logoContentId is not null
+            ? """
+                <div style="flex:1;color:#FFFFFF;">
+                    <div style="font-size:18px;font-weight:700;">Vistor.ia</div>
+                </div>
+              """
             : """
-              <span style="font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:32px;font-weight:700;color:#FFFFFF;">
-                  Vistor.ia
-              </span>
+                <div style="flex:1;color:#FFFFFF;">
+                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:32px;font-weight:700;color:#FFFFFF;">Vistor.ia</span>
+                </div>
               """;
 
         var html = $"""
@@ -67,9 +75,7 @@ public sealed class SmtpEmailTemplateRenderer : IEmailTemplateRenderer
                                     <td style="padding:24px;background-color:{primaryColor};">
                                         <div style="display:flex;align-items:center;gap:16px;">
                                             {logoHtml}
-                                            <div style="flex:1;color:#FFFFFF;">
-                                                <div style="font-size:18px;font-weight:700;">Vistor.ia</div>
-                                            </div>
+                                            {brandHtml}
                                         </div>
                                     </td>
                                 </tr>
@@ -131,10 +137,18 @@ public sealed class SmtpEmailTemplateRenderer : IEmailTemplateRenderer
                    style="display:block;width:150px;max-width:100%;height:auto;border:0;"
                />
                """
+            : string.Empty;
+
+        var brandHtml = logoContentId is not null
+            ? """
+                <div style="flex:1;color:#FFFFFF;">
+                    <div style="font-size:18px;font-weight:700;">Vistor.ia</div>
+                </div>
+              """
             : """
-              <span style="font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:32px;font-weight:700;color:#FFFFFF;">
-                  Vistor.ia
-              </span>
+                <div style="flex:1;color:#FFFFFF;">
+                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:32px;font-weight:700;color:#FFFFFF;">Vistor.ia</span>
+                </div>
               """;
 
         var html = $"""
@@ -161,9 +175,7 @@ public sealed class SmtpEmailTemplateRenderer : IEmailTemplateRenderer
                                     <td style="padding:24px;background-color:{primaryColor};">
                                         <div style="display:flex;align-items:center;gap:16px;">
                                             {logoHtml}
-                                            <div style="flex:1;color:#FFFFFF;">
-                                                <div style="font-size:18px;font-weight:700;">Vistor.ia</div>
-                                            </div>
+                                            {brandHtml}
                                         </div>
                                     </td>
                                 </tr>
