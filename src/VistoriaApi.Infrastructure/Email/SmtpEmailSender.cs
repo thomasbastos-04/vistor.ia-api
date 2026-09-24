@@ -124,6 +124,204 @@ public sealed class SmtpEmailSender : IEmailSender
         }
     }
 
+    public async Task SendVerificationCodeAsync(
+        string email,
+        string recipientName,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        ValidateRecipient(email, recipientName);
+
+        var smtpHost = GetRequiredConfiguration("Smtp:Host");
+        var smtpPort = _configuration.GetValue<int>("Smtp:Port");
+
+        if (smtpPort <= 0)
+        {
+            throw new InvalidOperationException(
+                "A configuração Smtp:Port é inválida.");
+        }
+
+        var senderEmail = GetRequiredConfiguration("Smtp:From");
+        var useSsl = _configuration.GetValue<bool>("Smtp:UseSsl");
+
+        var primaryColor = GetColor(
+            "Email:ColorPrimary",
+            DefaultPrimaryColor);
+
+        var secondaryColor = GetColor(
+            "Email:ColorSecondary",
+            DefaultSecondaryColor);
+
+        var builder = new BodyBuilder();
+        var logoContentId = TryAddInlineLogo(builder);
+
+        var content = await _renderer.RenderVerificationCodeAsync(
+            recipientName,
+            code,
+            logoContentId,
+            primaryColor,
+            secondaryColor,
+            cancellationToken);
+
+        builder.HtmlBody = content.HtmlBody;
+        builder.TextBody = content.TextBody;
+
+        var message = new MimeMessage
+        {
+            Subject = content.Subject,
+            Body = builder.ToMessageBody()
+        };
+
+        message.From.Add(
+            new MailboxAddress(
+                "Vistor.ia",
+                senderEmail));
+
+        message.To.Add(
+            new MailboxAddress(
+                recipientName.Trim(),
+                email.Trim()));
+
+        using var client = new SmtpClient();
+
+        try
+        {
+            await client.ConnectAsync(
+                smtpHost,
+                smtpPort,
+                useSsl,
+                cancellationToken);
+
+            var username = _configuration["Smtp:Username"];
+            var password = _configuration["Smtp:Password"];
+
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                if (string.IsNullOrWhiteSpace(password))
+                {
+                    throw new InvalidOperationException(
+                        "Smtp:Password deve ser configurada quando Smtp:Username for informado.");
+                }
+
+                await client.AuthenticateAsync(
+                    username,
+                    password,
+                    cancellationToken);
+            }
+
+            await client.SendAsync(
+                message,
+                cancellationToken);
+        }
+        finally
+        {
+            if (client.IsConnected)
+            {
+                await client.DisconnectAsync(
+                    true,
+                    CancellationToken.None);
+            }
+        }
+    }
+
+    public async Task SendWelcomeAsync(
+        string email,
+        string recipientName,
+        CancellationToken cancellationToken)
+    {
+        ValidateRecipient(email, recipientName);
+
+        var smtpHost = GetRequiredConfiguration("Smtp:Host");
+        var smtpPort = _configuration.GetValue<int>("Smtp:Port");
+
+        if (smtpPort <= 0)
+        {
+            throw new InvalidOperationException(
+                "A configuração Smtp:Port é inválida.");
+        }
+
+        var senderEmail = GetRequiredConfiguration("Smtp:From");
+        var useSsl = _configuration.GetValue<bool>("Smtp:UseSsl");
+
+        var primaryColor = GetColor(
+            "Email:ColorPrimary",
+            DefaultPrimaryColor);
+
+        var secondaryColor = GetColor(
+            "Email:ColorSecondary",
+            DefaultSecondaryColor);
+
+        var builder = new BodyBuilder();
+        var logoContentId = TryAddInlineLogo(builder);
+
+        var content = await _renderer.RenderWelcomeAsync(
+            recipientName,
+            logoContentId,
+            primaryColor,
+            secondaryColor,
+            cancellationToken);
+
+        builder.HtmlBody = content.HtmlBody;
+        builder.TextBody = content.TextBody;
+
+        var message = new MimeMessage
+        {
+            Subject = content.Subject,
+            Body = builder.ToMessageBody()
+        };
+
+        message.From.Add(
+            new MailboxAddress(
+                "Vistor.ia",
+                senderEmail));
+
+        message.To.Add(
+            new MailboxAddress(
+                recipientName.Trim(),
+                email.Trim()));
+
+        using var client = new SmtpClient();
+
+        try
+        {
+            await client.ConnectAsync(
+                smtpHost,
+                smtpPort,
+                useSsl,
+                cancellationToken);
+
+            var username = _configuration["Smtp:Username"];
+            var password = _configuration["Smtp:Password"];
+
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                if (string.IsNullOrWhiteSpace(password))
+                {
+                    throw new InvalidOperationException(
+                        "Smtp:Password deve ser configurada quando Smtp:Username for informado.");
+                }
+
+                await client.AuthenticateAsync(
+                    username,
+                    password,
+                    cancellationToken);
+            }
+
+            await client.SendAsync(
+                message,
+                cancellationToken);
+        }
+        finally
+        {
+            if (client.IsConnected)
+            {
+                await client.DisconnectAsync(
+                    true,
+                    CancellationToken.None);
+            }
+        }
+    }
+
     private string? TryAddInlineLogo(BodyBuilder builder)
     {
         var configuredPath = _configuration["Email:LogoPath"];

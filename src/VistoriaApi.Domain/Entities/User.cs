@@ -30,4 +30,25 @@ public sealed class User : Entity
     [Required]
     [StringLength(500)]
     public string PasswordHash { get; private set; } = null!;
+
+    public bool IsEmailVerified { get; private set; }
+
+    [StringLength(20)]
+    public string? EmailVerificationCode { get; private set; }
+
+    public DateTime? EmailVerificationExpiresAtUtc { get; private set; }
+
+    public void SetEmailVerification(string code, DateTime expiresAtUtc)
+    {
+        EmailVerificationCode = code;
+        EmailVerificationExpiresAtUtc = expiresAtUtc;
+        IsEmailVerified = false;
+    }
+
+    public void MarkEmailAsVerified()
+    {
+        IsEmailVerified = true;
+        EmailVerificationCode = null;
+        EmailVerificationExpiresAtUtc = null;
+    }
 }

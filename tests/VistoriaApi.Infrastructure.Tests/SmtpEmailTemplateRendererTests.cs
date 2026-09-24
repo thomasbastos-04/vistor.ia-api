@@ -25,4 +25,39 @@ public class SmtpEmailTemplateRendererTests
         Assert.False(string.IsNullOrWhiteSpace(content.HtmlBody));
         Assert.False(string.IsNullOrWhiteSpace(content.TextBody));
     }
+
+    [Fact]
+    public async Task RenderVerificationCodeAsync_ReturnsContent()
+    {
+        var renderer = new SmtpEmailTemplateRenderer();
+
+        var content = await renderer.RenderVerificationCodeAsync(
+            "João Silva",
+            "123456",
+            logoContentId: null,
+            primaryColor: "#123456",
+            secondaryColor: "#654321",
+            CancellationToken.None);
+
+        Assert.False(string.IsNullOrWhiteSpace(content.Subject));
+        Assert.False(string.IsNullOrWhiteSpace(content.HtmlBody));
+        Assert.False(string.IsNullOrWhiteSpace(content.TextBody));
+    }
+
+    [Fact]
+    public async Task RenderWelcomeAsync_ReturnsContent()
+    {
+        var renderer = new SmtpEmailTemplateRenderer();
+
+        var content = await renderer.RenderWelcomeAsync(
+            "João Silva",
+            logoContentId: null,
+            primaryColor: "#123456",
+            secondaryColor: "#654321",
+            CancellationToken.None);
+
+        Assert.False(string.IsNullOrWhiteSpace(content.Subject));
+        Assert.False(string.IsNullOrWhiteSpace(content.HtmlBody));
+        Assert.False(string.IsNullOrWhiteSpace(content.TextBody));
+    }
 }
