@@ -34,7 +34,8 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          # Only push when workflow triggered by a direct push to the main branch
+          push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/vistoria-api:latest
             ghcr.io/${{ github.repository_owner }}/vistoria-api:${{ github.sha }}
