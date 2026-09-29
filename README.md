@@ -198,6 +198,49 @@ Arquivos `.env` reais não devem ser versionados. Utilize apenas os exemplos inc
 
 ## Autor
 
+
+---
+
+Developer quickstart (English)
+
+If you are contributing or developing locally, here is a minimal quickstart:
+
+1. Ensure .NET 8 SDK is installed.
+2. Configure your environment (see configuration keys below).
+3. Build and run the API:
+
+   dotnet build
+   dotnet run --project src/VistoriaApi.Api/VistoriaApi.Api.csproj
+
+Configuration keys (examples):
+
+- ConnectionStrings:Default — PostgreSQL connection string
+- Jwt:Key — symmetric key (min length 32)
+- Jwt:Issuer, Jwt:Audience — token settings
+- Smtp:Host, Smtp:Port, Smtp:From — SMTP server settings
+- Smtp:Username, Smtp:Password — optional SMTP auth
+- Email:LogoPath — optional path to inline logo PNG used in templates
+
+Database migrations (optional):
+
+Use EF Core tools when required:
+
+  dotnet tool install --global dotnet-ef
+  dotnet ef migrations add <Name> -p src/VistoriaApi.Infrastructure -s src/VistoriaApi.Api
+  dotnet ef database update -p src/VistoriaApi.Infrastructure -s src/VistoriaApi.Api
+
+Recent refactor note
+
+The SMTP sending logic was refactored to reduce duplication. New files were added:
+
+- src/VistoriaApi.Infrastructure/Email/SmtpSettings.cs
+- src/VistoriaApi.Infrastructure/Email/SmtpClientHelper.cs
+- src/VistoriaApi.Infrastructure/Email/SmtpEmailSender.cs (refactored)
+
+These changes centralize SMTP configuration and connection/send logic, making the sender easier to test and extend.
+
+See docs/ARCHITECTURE.md for architecture details and contributing guidelines in CONTRIBUTING.md.
+
 Desenvolvido por **Thomas Bastos**.
 
 - GitHub: [thomasbastos-04](https://github.com/thomasbastos-04)
