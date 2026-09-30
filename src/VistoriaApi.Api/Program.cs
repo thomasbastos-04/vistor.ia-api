@@ -77,7 +77,29 @@ builder.Services.AddScoped<InspectionService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
 builder.Services.AddScoped<VistoriaApi.Application.Abstractions.IEmailTemplateRenderer, VistoriaApi.Infrastructure.Email.SmtpEmailTemplateRenderer>();
-builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+// Resend configuration - fail fast if missing
+var resendApiKey = builder.Configuration["Resend:ApiKey"];
+var resendFrom = builder.Configuration["Resend:From"];
+
+if (string.IsNullOrWhiteSpace(resendApiKey))
+{
+    throw new InvalidOperationException("A configuração Resend:ApiKey não foi informada.");
+}
+
+if (string.IsNullOrWhiteSpace(resendFrom))
+{
+    throw new InvalidOperationException("A configuração Resend:From não foi informada.");
+}
+
+builder.Services.AddHttpClient("resend", client =>
+{
+    client.BaseAddress = new Uri("https://api.resend.com");
+    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", resendApiKey);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("VistoriaApi/1.0");
+});
+
+builder.Services.AddScoped<IEmailSender, VistoriaApi.Infrastructure.Email.ResendEmailSender>();
 builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
