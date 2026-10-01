@@ -9,6 +9,7 @@
     <PackageReference Include="Resend" Version="0.21.0" />
     <ProjectReference Include="../VistoriaApi.Application/VistoriaApi.Application.csproj" />
     <!-- MailKit removed in favor of Resend transport -->
+    <PackageReference Include="AWSSDK.S3" Version="3.7.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.8" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
