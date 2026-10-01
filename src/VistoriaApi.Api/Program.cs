@@ -100,7 +100,17 @@ builder.Services.AddHttpClient("resend", client =>
 });
 
 builder.Services.AddScoped<IEmailSender, VistoriaApi.Infrastructure.Email.ResendEmailSender>();
-builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
+
+// File storage provider: Local (default) or R2 (Cloudflare R2 via S3 API)
+var storageProvider = builder.Configuration["Storage:Provider"] ?? "Local";
+if (string.Equals(storageProvider, "R2", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IFileStorage, VistoriaApi.Infrastructure.Files.S3FileStorage>();
+}
+else
+{
+    builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
+}
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
